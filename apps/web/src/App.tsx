@@ -26,6 +26,8 @@ const RapportsPage = lazy(() => import('./features/financier/RapportsPage'));
 const ConfigFraisPage = lazy(() => import('./features/financier/ConfigFraisPage'));
 const ExportsPage = lazy(() => import('./features/exports/ExportsPage'));
 const UtilisateursPage = lazy(() => import('./features/utilisateurs/UtilisateursPage'));
+const EtablissementPage = lazy(() => import('./features/etablissements/EtablissementPage'));
+const ResetPassword = lazy(() => import('./features/auth/ResetPasswordPage'));
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const token = useSelector((s: RootState) => s.auth.token);
@@ -67,6 +69,7 @@ function AppLayout() {
               <Route path="/financier/config" element={<ConfigFraisPage />} />
               <Route path="/exports" element={<ExportsPage />} />
               <Route path="/utilisateurs" element={<UtilisateursPage />} />
+              <Route path="/etablissement" element={<EtablissementPage />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
           </Suspense>
@@ -83,6 +86,7 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password/:token" element={<ResetPassword />} />
           <Route
             path="/*"
             element={
