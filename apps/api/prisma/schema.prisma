@@ -1,0 +1,464 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== CORE ====================
+
+model Etablissement {
+  id        String   @id @default(uuid())
+  nom       String
+  type      String   // maternelle, primaire, secondaire
+  adresse   String?
+  telephone String?
+  email     String?
+  logoUrl   String?  @map("logo_url")
+  actif     Boolean  @default(true)
+  creeLe    DateTime @default(now()) @map("cree_le")
+  modifieLe DateTime @updatedAt @map("modifie_le")
+
+  utilisateurs           Utilisateur[]
+  eleves                 Eleve[]
+  classes                Classe[]
+  enseignants            Enseignant[]
+  anneesScolaires        AnneeScolaire[]
+  periodes               Periode[]
+  matieres               Matiere[]
+  notes                  Note[]
+  evaluationsQualitatives EvaluationQualitative[]
+  moyennes               Moyenne[]
+  presences              Presence[]
+  typesFrais             TypeFrais[]
+  montantsFrais          MontantFrais[]
+  factures               Facture[]
+  paiements              PaiementRecord[]
+  affectationsEleves     AffectationEleve[]
+  affectationsEnseignants AffectationEnseignant[]
+  evaluationsRattrapage  EvaluationRattrapage[]
+  parents                ParentRecord[]
+  credits                Credit[]
+  auditLogs              AuditLog[]
+
+  @@map("etablissements")
+}
+
+model Utilisateur {
+  id              String   @id @default(uuid())
+  nom             String
+  prenom          String
+  email           String
+  motDePasseHash  String   @map("mot_de_passe_hash")
+  etablissementId String   @map("etablissement_id")
+  role            String   // directeur, admin, secretaire, comptable, enseignant
+  actif           Boolean  @default(true)
+  creeLe          DateTime @default(now()) @map("cree_le")
+
+  etablissement Etablissement @relation(fields: [etablissementId], references: [id])
+  auditLogs     AuditLog[]
+
+  @@unique([email, etablissementId])
+  @@index([etablissementId])
+  @@map("utilisateurs")
+}
+
+model Eleve {
+  id              String   @id @default(uuid())
+  numeroEleve     String?  @map("numero_eleve")
+  nom             String
+  prenom          String
+  dateNaissance   DateTime @map("date_naissance")
+  sexe            String   // M, F, Autre
+  photoUrl        String?  @map("photo_url")
+  statut          String   @default("inscrit") // inscrit, admis, desinscrit
+  etablissementId String   @map("etablissement_id")
+  creeLe          DateTime @default(now()) @map("cree_le")
+
+  etablissement          Etablissement           @relation(fields: [etablissementId], references: [id])
+  parents                ParentRecord[]
+  affectations           AffectationEleve[]
+  notes                  Note[]
+  evaluationsQualitatives EvaluationQualitative[]
+  moyennes               Moyenne[]
+  presences              Presence[]
+  factures               Facture[]
+  paiements              PaiementRecord[]
+  credits                Credit[]
+
+  @@unique([numeroEleve, etablissementId])
+  @@index([etablissementId])
+  @@index([statut, etablissementId])
+  @@map("eleves")
+}
+
+model ParentRecord {
+  id              String  @id @default(uuid())
+  eleveId         String  @map("eleve_id")
+  nom             String
+  telephone       String?
+  email           String?
+  adresse         String?
+  etablissementId String  @map("etablissement_id")
+
+  eleve         Eleve         @relation(fields: [eleveId], references: [id])
+  etablissement Etablissement @relation(fields: [etablissementId], references: [id])
+
+  @@index([eleveId])
+  @@index([etablissementId])
+  @@map("parents")
+}
+
+model Classe {
+  id              String   @id @default(uuid())
+  nom             String
+  niveau          String
+  effectifMax     Int      @map("effectif_max")
+  etablissementId String   @map("etablissement_id")
+  anneeScolaireId String   @map("annee_scolaire_id")
+  creeLe          DateTime @default(now()) @map("cree_le")
+
+  etablissement          Etablissement           @relation(fields: [etablissementId], references: [id])
+  anneeScolaire          AnneeScolaire           @relation(fields: [anneeScolaireId], references: [id])
+  affectationsEleves     AffectationEleve[]
+  affectationsEnseignants AffectationEnseignant[]
+  presences              Presence[]
+  montantsFrais          MontantFrais[]
+
+  @@unique([nom, etablissementId, anneeScolaireId])
+  @@index([etablissementId])
+  @@map("classes")
+}
+
+model Enseignant {
+  id              String   @id @default(uuid())
+  nom             String
+  prenom          String
+  email           String?
+  telephone       String?
+  etablissementId String   @map("etablissement_id")
+  creeLe          DateTime @default(now()) @map("cree_le")
+
+  etablissement  Etablissement           @relation(fields: [etablissementId], references: [id])
+  affectations   AffectationEnseignant[]
+
+  @@index([etablissementId])
+  @@map("enseignants")
+}
+
+model AnneeScolaire {
+  id              String   @id @default(uuid())
+  nom             String
+  dateDebut       DateTime @map("date_debut")
+  dateFin         DateTime @map("date_fin")
+  etablissementId String   @map("etablissement_id")
+  active          Boolean  @default(false)
+
+  etablissement Etablissement @relation(fields: [etablissementId], references: [id])
+  classes       Classe[]
+  periodes      Periode[]
+
+  @@unique([nom, etablissementId])
+  @@index([etablissementId])
+  @@map("annees_scolaires")
+}
+
+model Periode {
+  id              String   @id @default(uuid())
+  nom             String
+  dateDebut       DateTime @map("date_debut")
+  dateFin         DateTime @map("date_fin")
+  anneeScolaireId String   @map("annee_scolaire_id")
+  etablissementId String   @map("etablissement_id")
+
+  anneeScolaire          AnneeScolaire           @relation(fields: [anneeScolaireId], references: [id])
+  etablissement          Etablissement           @relation(fields: [etablissementId], references: [id])
+  notes                  Note[]
+  evaluationsQualitatives EvaluationQualitative[]
+  moyennes               Moyenne[]
+
+  @@index([etablissementId])
+  @@index([anneeScolaireId])
+  @@map("periodes")
+}
+
+model Matiere {
+  id              String  @id @default(uuid())
+  nom             String
+  niveau          String
+  coefficient     Float   @default(1)
+  etablissementId String  @map("etablissement_id")
+
+  etablissement          Etablissement           @relation(fields: [etablissementId], references: [id])
+  notes                  Note[]
+  moyennes               Moyenne[]
+  affectationsEnseignants AffectationEnseignant[]
+
+  @@unique([nom, niveau, etablissementId])
+  @@index([etablissementId])
+  @@map("matieres")
+}
+
+// ==================== EVALUATIONS ====================
+
+model Note {
+  id              String   @id @default(uuid())
+  eleveId         String   @map("eleve_id")
+  matiereId       String   @map("matiere_id")
+  periodeId       String   @map("periode_id")
+  note            Float
+  noteMax         Float    @default(20) @map("note_max")
+  coefficient     Float    @default(1)
+  validee         Boolean  @default(false)
+  etablissementId String   @map("etablissement_id")
+  creeLe          DateTime @default(now()) @map("cree_le")
+
+  eleve         Eleve         @relation(fields: [eleveId], references: [id])
+  matiere       Matiere       @relation(fields: [matiereId], references: [id])
+  periode       Periode       @relation(fields: [periodeId], references: [id])
+  etablissement Etablissement @relation(fields: [etablissementId], references: [id])
+  rattrapage    EvaluationRattrapage?
+
+  @@index([eleveId, matiereId, periodeId])
+  @@index([etablissementId])
+  @@map("notes")
+}
+
+model EvaluationQualitative {
+  id              String @id @default(uuid())
+  eleveId         String @map("eleve_id")
+  domaine         String
+  valeur          String // acquis, en_cours, non_acquis
+  periodeId       String @map("periode_id")
+  etablissementId String @map("etablissement_id")
+
+  eleve         Eleve         @relation(fields: [eleveId], references: [id])
+  periode       Periode       @relation(fields: [periodeId], references: [id])
+  etablissement Etablissement @relation(fields: [etablissementId], references: [id])
+
+  @@index([eleveId, periodeId])
+  @@index([etablissementId])
+  @@map("evaluations_qualitatives")
+}
+
+model Moyenne {
+  id              String  @id @default(uuid())
+  eleveId         String  @map("eleve_id")
+  matiereId       String? @map("matiere_id")
+  periodeId       String  @map("periode_id")
+  moyenne         Float
+  etablissementId String  @map("etablissement_id")
+
+  eleve         Eleve         @relation(fields: [eleveId], references: [id])
+  matiere       Matiere?      @relation(fields: [matiereId], references: [id])
+  periode       Periode       @relation(fields: [periodeId], references: [id])
+  etablissement Etablissement @relation(fields: [etablissementId], references: [id])
+
+  @@unique([eleveId, matiereId, periodeId])
+  @@index([etablissementId])
+  @@map("moyennes")
+}
+
+model EvaluationRattrapage {
+  id              String    @id @default(uuid())
+  noteOriginaleId String    @unique @map("note_originale_id")
+  dateLimite      DateTime  @map("date_limite")
+  noteRattrapage  Float?    @map("note_rattrapage")
+  etablissementId String    @map("etablissement_id")
+
+  noteOriginale Etablissement @relation(fields: [etablissementId], references: [id])
+  note          Note          @relation(fields: [noteOriginaleId], references: [id])
+
+  @@index([etablissementId])
+  @@map("evaluations_rattrapage")
+}
+
+// ==================== PRESENCE ====================
+
+model Presence {
+  id              String   @id @default(uuid())
+  eleveId         String   @map("eleve_id")
+  classeId        String   @map("classe_id")
+  date            DateTime @db.Date
+  present         Boolean
+  etablissementId String   @map("etablissement_id")
+
+  eleve         Eleve         @relation(fields: [eleveId], references: [id])
+  classe        Classe        @relation(fields: [classeId], references: [id])
+  etablissement Etablissement @relation(fields: [etablissementId], references: [id])
+
+  @@unique([eleveId, classeId, date])
+  @@index([classeId, date])
+  @@index([etablissementId])
+  @@map("presences")
+}
+
+// ==================== FINANCIER ====================
+
+model TypeFrais {
+  id              String  @id @default(uuid())
+  nom             String
+  description     String?
+  etablissementId String  @map("etablissement_id")
+
+  etablissement Etablissement  @relation(fields: [etablissementId], references: [id])
+  montants      MontantFrais[]
+  factures      Facture[]
+
+  @@unique([nom, etablissementId])
+  @@index([etablissementId])
+  @@map("types_frais")
+}
+
+model MontantFrais {
+  id              String    @id @default(uuid())
+  typeFraisId     String    @map("type_frais_id")
+  niveau          String?
+  classeId        String?   @map("classe_id")
+  montant         Float
+  echeance        DateTime? @db.Date
+  etablissementId String    @map("etablissement_id")
+
+  typeFrais     TypeFrais     @relation(fields: [typeFraisId], references: [id])
+  classe        Classe?       @relation(fields: [classeId], references: [id])
+  etablissement Etablissement @relation(fields: [etablissementId], references: [id])
+
+  @@index([etablissementId])
+  @@map("montants_frais")
+}
+
+model Facture {
+  id              String   @id @default(uuid())
+  eleveId         String   @map("eleve_id")
+  typeFraisId     String   @map("type_frais_id")
+  montant         Float
+  dateEmission    DateTime @default(now()) @map("date_emission")
+  dateEcheance    DateTime @map("date_echeance")
+  statut          String   @default("emise") // emise, payee, partiellement_payee, impayee
+  periode         String
+  etablissementId String   @map("etablissement_id")
+  creeLe          DateTime @default(now()) @map("cree_le")
+
+  eleve            Eleve              @relation(fields: [eleveId], references: [id])
+  typeFrais        TypeFrais          @relation(fields: [typeFraisId], references: [id])
+  etablissement    Etablissement      @relation(fields: [etablissementId], references: [id])
+  paiementFactures PaiementFacture[]
+
+  @@index([eleveId, statut])
+  @@index([etablissementId])
+  @@index([statut, etablissementId])
+  @@map("factures")
+}
+
+model PaiementRecord {
+  id              String   @id @default(uuid())
+  eleveId         String   @map("eleve_id")
+  montant         Float
+  date            DateTime @default(now())
+  mode            String   // especes, virement, cheque, mobile_money
+  reference       String?
+  etablissementId String   @map("etablissement_id")
+  creeLe          DateTime @default(now()) @map("cree_le")
+
+  eleve            Eleve              @relation(fields: [eleveId], references: [id])
+  etablissement    Etablissement      @relation(fields: [etablissementId], references: [id])
+  paiementFactures PaiementFacture[]
+
+  @@index([eleveId])
+  @@index([etablissementId])
+  @@map("paiements")
+}
+
+model PaiementFacture {
+  id             String @id @default(uuid())
+  paiementId     String @map("paiement_id")
+  factureId      String @map("facture_id")
+  montantAffecte Float  @map("montant_affecte")
+
+  paiement PaiementRecord @relation(fields: [paiementId], references: [id])
+  facture  Facture        @relation(fields: [factureId], references: [id])
+
+  @@index([paiementId])
+  @@index([factureId])
+  @@map("paiements_factures")
+}
+
+model Credit {
+  id              String @id @default(uuid())
+  eleveId         String @map("eleve_id")
+  montant         Float
+  soldeRestant    Float  @map("solde_restant")
+  etablissementId String @map("etablissement_id")
+
+  eleve         Eleve         @relation(fields: [eleveId], references: [id])
+  etablissement Etablissement @relation(fields: [etablissementId], references: [id])
+
+  @@index([eleveId])
+  @@index([etablissementId])
+  @@map("credits")
+}
+
+// ==================== AFFECTATIONS ====================
+
+model AffectationEleve {
+  id              String    @id @default(uuid())
+  eleveId         String    @map("eleve_id")
+  classeId        String    @map("classe_id")
+  dateDebut       DateTime  @default(now()) @map("date_debut")
+  dateFin         DateTime? @map("date_fin")
+  etablissementId String    @map("etablissement_id")
+
+  eleve         Eleve         @relation(fields: [eleveId], references: [id])
+  classe        Classe        @relation(fields: [classeId], references: [id])
+  etablissement Etablissement @relation(fields: [etablissementId], references: [id])
+
+  @@index([eleveId])
+  @@index([classeId])
+  @@index([etablissementId])
+  @@map("affectations_eleves")
+}
+
+model AffectationEnseignant {
+  id              String    @id @default(uuid())
+  enseignantId    String    @map("enseignant_id")
+  classeId        String    @map("classe_id")
+  matiereId       String?   @map("matiere_id")
+  dateDebut       DateTime  @default(now()) @map("date_debut")
+  dateFin         DateTime? @map("date_fin")
+  etablissementId String    @map("etablissement_id")
+
+  enseignant    Enseignant    @relation(fields: [enseignantId], references: [id])
+  classe        Classe        @relation(fields: [classeId], references: [id])
+  matiere       Matiere?      @relation(fields: [matiereId], references: [id])
+  etablissement Etablissement @relation(fields: [etablissementId], references: [id])
+
+  @@index([enseignantId])
+  @@index([classeId])
+  @@index([etablissementId])
+  @@map("affectations_enseignants")
+}
+
+// ==================== AUDIT ====================
+
+model AuditLog {
+  id              String   @id @default(uuid())
+  utilisateurId   String?  @map("utilisateur_id")
+  etablissementId String   @map("etablissement_id")
+  action          String
+  ressource       String
+  donneesAvant    Json?    @map("donnees_avant")
+  donneesApres    Json?    @map("donnees_apres")
+  timestamp       DateTime @default(now())
+  ip              String?
+  userAgent       String?  @map("user_agent")
+
+  utilisateur   Utilisateur?  @relation(fields: [utilisateurId], references: [id])
+  etablissement Etablissement @relation(fields: [etablissementId], references: [id])
+
+  @@index([etablissementId])
+  @@index([utilisateurId])
+  @@index([timestamp])
+  @@map("audit_logs")
+}
